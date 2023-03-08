@@ -1,5 +1,6 @@
-.pt
-.pth
-.pth.tar
-.ckpt
-.git
+*.pt
+*.pth
+*.pth.tar
+*.ckpt
+*.git
+*.ipynb_checkpoints
