@@ -1,0 +1,67 @@
+data:
+    dataset: "RainDrop"
+    category: "raindrop"
+    image_size: 256
+    channels: 3
+    logit_transform: false
+    uniform_dequantization: false
+    gaussian_dequantization: false
+    random_flip: true
+    rescaled: true
+    num_workers: 32
+    subset_1k: True
+    out_of_dist: false
+    # data_dir: "/scratch/ozan/"
+    # conditional: True
+
+model:
+    type: "rdopenai"
+    in_channels: 3
+    out_channels: 3
+    num_channels: 256
+    num_heads: 4
+    num_res_blocks: 2
+    attention_resolutions: "32,16,8"
+    dropout: 0.0
+    resamp_with_conv: True
+    learn_sigma: True
+    use_scale_shift_norm: true
+    use_fp16: true
+    resblock_updown: true
+    num_heads_upsample: -1
+    var_type: 'fixedsmall'
+    num_head_channels: 64
+    image_size: 256
+    class_cond: true
+    use_new_attention_order: false
+
+diffusion:
+    beta_schedule: linear
+    beta_start: 0.0001
+    beta_end: 0.02
+    num_diffusion_timesteps: 1000
+
+training:
+    # patch_n: 16
+    batch_size: 16
+    n_epochs: 37042
+    n_iters: 2000000
+    snapshot_freq: 10000
+    validation_freq: 10000
+
+optim:
+    weight_decay: 0.000
+    optimizer: "Adam"
+    lr: 0.00002
+    beta1: 0.9
+    amsgrad: False
+    eps: 0.00000001
+
+sampling:
+    batch_size: 1
+    # last_only: True
+
+time_travel:
+    T_sampling: 100
+    travel_length: 1
+    travel_repeat: 1

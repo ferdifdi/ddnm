@@ -127,7 +127,9 @@ class Diffusion(object):
                 name = 'raindrop'
             else:
                 raise ValueError
-            if name != 'celeba_hq':
+            if name == 'raindrop':                
+                ckpt = os.path.join(self.args.exp, 'logs/raindrop/WeatherDiff128.pth.tar')
+            elif name != 'celeba_hq':
                 ckpt = get_ckpt_path(f"ema_{name}", prefix=self.args.exp)
                 print("Loading checkpoint {}".format(ckpt))
             elif name == 'celeba_hq':
@@ -140,7 +142,11 @@ class Diffusion(object):
             model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
             model = torch.nn.DataParallel(model)
-
+            
+            print("Model's state_dict:")
+            for param_tensor in model.state_dict():
+                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+            
         elif self.config.model.type == 'openai':
             config_dict = vars(self.config.model)
             model = create_model(**config_dict)
@@ -151,7 +157,7 @@ class Diffusion(object):
                 self.config.data.image_size, self.config.data.image_size))
                 if not os.path.exists(ckpt):
                     download(
-                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_diffusion_uncond.pt' % (
+                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_diffusion.pt' % (
                         self.config.data.image_size, self.config.data.image_size), ckpt)
             else:
                 ckpt = os.path.join(self.args.exp, "logs/imagenet/256x256_diffusion_uncond.pt")
@@ -164,6 +170,10 @@ class Diffusion(object):
             model.to(self.device)
             model.eval()
             model = torch.nn.DataParallel(model)
+            
+            print("Model's state_dict:")
+            for param_tensor in model.state_dict():
+                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
             if self.config.model.class_cond:
                 ckpt = os.path.join(self.args.exp, 'logs/imagenet/%dx%d_classifier.pt' % (
@@ -171,8 +181,60 @@ class Diffusion(object):
                 if not os.path.exists(ckpt):
                     image_size = self.config.data.image_size
                     download(
-                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_classifier.pt' % image_size,
+                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_classifier.pt' % (
+                        self.config.data.image_size, self.config.data.image_size), ckpt)
+                classifier = create_classifier(**args_to_dict(self.config.classifier, classifier_defaults().keys()))
+                classifier.load_state_dict(torch.load(ckpt, map_location=self.device))
+                classifier.to(self.device)
+                if self.config.classifier.classifier_use_fp16:
+                    classifier.convert_to_fp16()
+                classifier.eval()
+                classifier = torch.nn.DataParallel(classifier)
+
+                import torch.nn.functional as F
+                def cond_fn(x, t, y):
+                    with torch.enable_grad():
+                        x_in = x.detach().requires_grad_(True)
+                        logits = classifier(x_in, t)
+                        log_probs = F.log_softmax(logits, dim=-1)
+                        selected = log_probs[range(len(logits)), y.view(-1)]
+                        return torch.autograd.grad(selected.sum(), x_in)[0] * self.config.classifier.classifier_scale
+
+                cls_fn = cond_fn
+
+        elif self.config.model.type == 'rdopenai':
+            config_dict = vars(self.config.model)
+            model = create_model(**config_dict)
+            if self.config.model.use_fp16:
+                model.convert_to_fp16()
+            if self.config.model.class_cond:
+                ckpt = os.path.join(self.args.exp, 'logs/raindrop/WeatherDiff128.pth.tar')
+                if not os.path.exists(ckpt):
+                    download(
+                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_diffusion.pt' % (
+                        self.config.data.image_size, self.config.data.image_size), ckpt)
+            else:
+                ckpt = os.path.join(self.args.exp, "logs/raindrop/WeatherDiff128.pth.tar")
+                if not os.path.exists(ckpt):
+                    download(
+                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt',
                         ckpt)
+            model.load_state_dict(torch.load(ckpt, map_location=self.device), strict = False)
+            model.to(self.device)
+            model.eval()
+            model = torch.nn.DataParallel(model)
+            
+            print("Model's state_dict:")
+            for param_tensor in model.state_dict():
+                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+
+            if self.config.model.class_cond:
+                ckpt = os.path.join(self.args.exp, 'logs/raindrop/WeatherDiff128.pth.tar')
+                if not os.path.exists(ckpt):
+                    image_size = self.config.data.image_size
+                    download(
+                        'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_classifier.pt' % (
+                        self.config.data.image_size, self.config.data.image_size), ckpt)
                 classifier = create_classifier(**args_to_dict(self.config.classifier, classifier_defaults().keys()))
                 classifier.load_state_dict(torch.load(ckpt, map_location=self.device))
                 classifier.to(self.device)
@@ -249,7 +311,27 @@ class Diffusion(object):
             Ap = lambda z: gray2color(z)
         elif args.deg =='denoising':
             A = lambda z: z
+            print("A:",A)
             Ap = A
+            print("Ap:",Ap)
+        elif args.deg =='raindrop':
+            A = lambda z: z
+            Ap = A
+        elif args.deg =='raindrop_mask':
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
+            mask = torch.from_numpy(loaded).to(self.device)
+            A1 = lambda z: z*mask
+            A1p = A1
+            
+            A2 = lambda z: color2gray(z)
+            A2p = lambda z: gray2color(z)
+            
+            scale=args.deg_scale
+            A3 = torch.nn.AdaptiveAvgPool2d((256//scale,256//scale))
+            A3p = lambda z: MeanUpsample(z,scale)
+            
+            A = lambda z: A3(A2(A1(z)))
+            Ap = lambda z: A1p(A2p(A3p(z)))  
         elif args.deg =='sr_averagepooling':
             scale=round(args.deg_scale)
             A = torch.nn.AdaptiveAvgPool2d((256//scale,256//scale))
@@ -474,6 +556,13 @@ class Diffusion(object):
         elif deg == 'denoising':
             from functions.svd_operators import Denoising
             A_funcs = Denoising(config.data.channels, self.config.data.image_size, self.device)
+        elif deg == 'raindrop':
+            from functions.svd_operators import Denoising
+            A_funcs = Denoising(config.data.channels, self.config.data.image_size, self.device)
+            
+#             from functions.svd_operators import GeneralA
+#             A=
+#             A_funcs = GeneralA(A)
         elif deg == 'colorization':
             from functions.svd_operators import Colorization
             A_funcs = Colorization(config.data.image_size, self.device)

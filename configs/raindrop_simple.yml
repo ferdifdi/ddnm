@@ -1,7 +1,7 @@
 data:
     dataset: "RainDrop"
     category: "raindrop"
-    image_size: 64
+    image_size: 256
     channels: 3
     logit_transform: false
     uniform_dequantization: false
@@ -9,7 +9,7 @@ data:
     random_flip: true
     rescaled: true
     num_workers: 32
-    out_of_dist: true
+    subset_1k: True
     out_of_dist: false
     # data_dir: "/scratch/ozan/"
     # conditional: True
@@ -35,7 +35,6 @@ diffusion:
     num_diffusion_timesteps: 1000
 
 training:
-    # patch_n: 16
     batch_size: 16
     n_epochs: 37042
     n_iters: 2000000
@@ -52,7 +51,6 @@ optim:
 
 sampling:
     batch_size: 1
-    # last_only: True
 
 time_travel:
     T_sampling: 100

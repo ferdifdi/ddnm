@@ -438,6 +438,44 @@ class Inpainting(A_functions):
         
         return result_vec + result_eps
 
+#Raindrop
+class Raindrop(A_functions):
+    def __init__(self, channels, img_dim, device):
+        self._singulars = torch.ones(channels * img_dim**2, device=device)
+
+    def V(self, vec):
+        return vec.clone().reshape(vec.shape[0], -1)
+
+    def Vt(self, vec):
+        return vec.clone().reshape(vec.shape[0], -1)
+
+    def U(self, vec):
+        return vec.clone().reshape(vec.shape[0], -1)
+
+    def Ut(self, vec):
+        return vec.clone().reshape(vec.shape[0], -1)
+
+    def singulars(self):
+        return self._singulars
+
+    def add_zeros(self, vec):
+        return vec.clone().reshape(vec.shape[0], -1)
+    
+    def Lambda(self, vec, a, sigma_y, sigma_t, eta):
+        if sigma_t < a * sigma_y:
+            factor = (sigma_t * (1 - eta ** 2) ** 0.5 / a / sigma_y).item()
+            return vec * factor
+        else:
+            return vec
+    
+    def Lambda_noise(self, vec, a, sigma_y, sigma_t, eta, epsilon):
+        if sigma_t >= a * sigma_y:
+            factor = torch.sqrt(sigma_t ** 2 - a ** 2 * sigma_y ** 2).item()
+            return vec * factor
+        else:
+            return vec * sigma_t * eta 
+    
+    
 #Denoising
 class Denoising(A_functions):
     def __init__(self, channels, img_dim, device):

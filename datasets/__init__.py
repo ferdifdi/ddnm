@@ -187,6 +187,32 @@ def get_dataset(args, config):
                 transforms.ToTensor()])
             )
             test_dataset = dataset
+    
+    elif config.data.dataset == 'RainDrop':
+        # only use validation dataset here
+        
+        if config.data.subset_1k:
+            from datasets.imagenet_subset import ImageDataset
+            dataset = ImageDataset(os.path.join(args.exp, 'datasets', 'raindrop', 'raindrop'),
+                     os.path.join(args.exp, 'raindrop_val_1k.txt'),
+                     image_size=config.data.image_size,
+                     normalize=False)
+            test_dataset = dataset
+        elif config.data.out_of_dist:
+            dataset = torchvision.datasets.ImageFolder(
+                os.path.join(args.exp, 'datasets', 'ood'),
+                transform=transforms.Compose([partial(center_crop_arr, image_size=config.data.image_size),
+                transforms.ToTensor()])
+            )
+            test_dataset = dataset
+        else:
+            dataset = torchvision.datasets.ImageNet(
+                os.path.join(args.exp, 'datasets', 'raindrop'), split='val',
+                transform=transforms.Compose([partial(center_crop_arr, image_size=config.data.image_size),
+                transforms.ToTensor()])
+            )
+            test_dataset = dataset
+    
     else:
         dataset, test_dataset = None, None
 
