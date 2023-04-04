@@ -139,13 +139,13 @@ class Diffusion(object):
                              ckpt)
             else:
                 raise ValueError
-            model.load_state_dict(torch.load(ckpt, map_location=self.device))
+            model.load_state_dict(torch.load(ckpt, map_location=self.device),strict = False)
             model.to(self.device)
             model = torch.nn.DataParallel(model)
             
-            print("Model's state_dict:")
-            for param_tensor in model.state_dict():
-                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+#             print("Model's state_dict:")
+#             for param_tensor in model.state_dict():
+#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
             
         elif self.config.model.type == 'openai':
             config_dict = vars(self.config.model)
@@ -171,9 +171,9 @@ class Diffusion(object):
             model.eval()
             model = torch.nn.DataParallel(model)
             
-            print("Model's state_dict:")
-            for param_tensor in model.state_dict():
-                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+#             print("Model's state_dict:")
+#             for param_tensor in model.state_dict():
+#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
             if self.config.model.class_cond:
                 ckpt = os.path.join(self.args.exp, 'logs/imagenet/%dx%d_classifier.pt' % (
@@ -224,9 +224,9 @@ class Diffusion(object):
             model.eval()
             model = torch.nn.DataParallel(model)
             
-            print("Model's state_dict:")
-            for param_tensor in model.state_dict():
-                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+#             print("Model's state_dict:")
+#             for param_tensor in model.state_dict():
+#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
             if self.config.model.class_cond:
                 ckpt = os.path.join(self.args.exp, 'logs/raindrop/WeatherDiff128.pth.tar')
@@ -311,27 +311,21 @@ class Diffusion(object):
             Ap = lambda z: gray2color(z)
         elif args.deg =='denoising':
             A = lambda z: z
-            print("A:",A)
+#             print("A:",A)            
+#             print("A:",A.shape)
+            
             Ap = A
-            print("Ap:",Ap)
+#             print("Ap:",Ap)            
+#             print("Ap:",Ap.shape)
+
         elif args.deg =='raindrop':
             A = lambda z: z
             Ap = A
         elif args.deg =='raindrop_mask':
             loaded = np.load("exp/inp_masks_raindrop/mask.npy")
             mask = torch.from_numpy(loaded).to(self.device)
-            A1 = lambda z: z*mask
-            A1p = A1
-            
-            A2 = lambda z: color2gray(z)
-            A2p = lambda z: gray2color(z)
-            
-            scale=args.deg_scale
-            A3 = torch.nn.AdaptiveAvgPool2d((256//scale,256//scale))
-            A3p = lambda z: MeanUpsample(z,scale)
-            
-            A = lambda z: A3(A2(A1(z)))
-            Ap = lambda z: A1p(A2p(A3p(z)))  
+            A = lambda z: z*mask
+            Ap = A 
         elif args.deg =='sr_averagepooling':
             scale=round(args.deg_scale)
             A = torch.nn.AdaptiveAvgPool2d((256//scale,256//scale))
@@ -382,17 +376,30 @@ class Diffusion(object):
         idx_init = args.subset_start
         idx_so_far = args.subset_start
         avg_psnr = 0.0
+        list_avg_psnr = []
         pbar = tqdm.tqdm(val_loader)
         for x_orig, classes in pbar:
             x_orig = x_orig.to(self.device)
             x_orig = data_transform(self.config, x_orig)
-
+            
+#             print("x_orig", x_orig )
+#             print("x_orig shape:", x_orig.shape )
+            
             y = A(x_orig)
+#             print("y", y )
+#             print("y shape:", y.shape )
 
             if config.sampling.batch_size!=1:
                 raise ValueError("please change the config file to set batch size as 1")
 
             Apy = Ap(y)
+#             print("Apy", Apy )
+#             print("Apy shape:", Apy.shape )
+            
+#             print("1",(x_orig == y))
+#             print("2",(x_orig == Apy))
+#             print("3",(y == Apy))
+
 
             os.makedirs(os.path.join(self.args.image_folder, "Apy"), exist_ok=True)
             for i in range(len(Apy)):
@@ -493,9 +500,10 @@ class Diffusion(object):
             idx_so_far += y.shape[0]
 
             pbar.set_description("PSNR: %.2f" % (avg_psnr / (idx_so_far - idx_init)))
-
-        avg_psnr = avg_psnr / (idx_so_far - idx_init)
-        print("Total Average PSNR: %.2f" % avg_psnr)
+            list_avg_psnr.append(avg_psnr / (idx_so_far - idx_init))
+        print(list_avg_psnr)
+        tot_avg_psnr = sum(list_avg_psnr)/len(list_avg_psnr)
+        print("Total Average PSNR: %.2f" % tot_avg_psnr)
         print("Number of samples: %d" % (idx_so_far - idx_init))
         
         
@@ -619,6 +627,7 @@ class Diffusion(object):
         idx_init = args.subset_start
         idx_so_far = args.subset_start
         avg_psnr = 0.0
+        list_avg_psnr = []
         pbar = tqdm.tqdm(val_loader)
         for x_orig, classes in pbar:
             x_orig = x_orig.to(self.device)
@@ -695,9 +704,12 @@ class Diffusion(object):
             idx_so_far += y.shape[0]
 
             pbar.set_description("PSNR: %.2f" % (avg_psnr / (idx_so_far - idx_init)))
-
-        avg_psnr = avg_psnr / (idx_so_far - idx_init)
-        print("Total Average PSNR: %.2f" % avg_psnr)
+            list_avg_psnr.append(avg_psnr / (idx_so_far - idx_init))
+        
+#         avg_psnr = avg_psnr / (idx_so_far - idx_init)
+        print(list_avg_psnr)
+        tot_avg_psnr = sum(list_avg_psnr) / len(list_avg_psnr)
+        print("Total Average PSNR: %.2f" % tot_avg_psnr)
         print("Number of samples: %d" % (idx_so_far - idx_init))
 
 # Code form RePaint   

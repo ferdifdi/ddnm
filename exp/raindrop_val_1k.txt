@@ -1,1 +1,6 @@
-2_rain.png 0
+10_rain.png 0
+11_rain.png 1
+53_rain.png 2
+26_rain.png 3
+48_rain.png 4
+54_rain.png 5
