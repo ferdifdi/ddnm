@@ -5,8 +5,8 @@ from utils.metrics import calculate_psnr, calculate_ssim
 # Sample script to calculate PSNR and SSIM metrics from saved images in two directories
 # using calculate_psnr and calculate_ssim functions from: https://github.com/JingyunLiang/SwinIR
 
-gt_path = '/workspace/WeatherDiffusion/scratch/ozan/data/raindrop/test_pilihan'
-results_path = '/workspace/WeatherDiffusion/scratch/ozan/data/raindrop_data/test_a/gt_pilihan'
+gt_path = '/workspace/DDNM/exp/datasets/imagenet/gt_256'
+results_path = '/workspace/DDNM/exp/image_samples/res_rdm'
 
 imgsName = sorted(os.listdir(results_path))
 print(imgsName)
