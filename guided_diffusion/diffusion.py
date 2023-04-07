@@ -554,7 +554,16 @@ class Diffusion(object):
             A_funcs = CS(config.data.channels, self.config.data.image_size, cs_ratio, self.device)
         elif deg == 'inpainting':
             from functions.svd_operators import Inpainting
-            loaded = np.load("exp/inp_masks/mask.npy")
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
+            mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
+            missing_r = torch.nonzero(mask == 0).long().reshape(-1) * 3
+            missing_g = missing_r + 1
+            missing_b = missing_g + 1
+            missing = torch.cat([missing_r, missing_g, missing_b], dim=0)
+            A_funcs = Inpainting(config.data.channels, config.data.image_size, missing, self.device)
+        elif deg == 'raindrop_mask':
+            from functions.svd_operators import Inpainting
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
             mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
             missing_r = torch.nonzero(mask == 0).long().reshape(-1) * 3
             missing_g = missing_r + 1
@@ -603,6 +612,9 @@ class Diffusion(object):
         elif deg == 'deblur_gauss':
             from functions.svd_operators import Deblurring
             sigma = 10
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
+            mask = torch.from_numpy(loaded).to(self.device)
+            x = lambda z: z*mask
             pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
             kernel = torch.Tensor([pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2)]).to(self.device)
             A_funcs = Deblurring(kernel / kernel.sum(), config.data.channels, self.config.data.image_size, self.device)

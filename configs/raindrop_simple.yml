@@ -1,7 +1,7 @@
 data:
     dataset: "RainDrop"
     category: "raindrop"
-    image_size: 480
+    image_size: 256
     channels: 3
     logit_transform: false
     uniform_dequantization: false
@@ -12,14 +12,14 @@ data:
     subset_1k: True
     out_of_dist: false
     # data_dir: "/scratch/ozan/"
-    # conditional: True
+    conditional: True
 
 model:
     type: "simple"
     in_channels: 3
     out_ch: 3
     ch: 128
-    ch_mult: [1, 1, 2, 2, 4, 4]
+    ch_mult: [1, 1, 2, 3, 4]
     num_res_blocks: 2
     attn_resolutions: [16, ]
     dropout: 0.0
@@ -35,24 +35,37 @@ diffusion:
     num_diffusion_timesteps: 1000
 
 training:
-    batch_size: 16
-    n_epochs: 37042
-    n_iters: 2000000
+#     batch_size: 16
+#     n_epochs: 37042
+#     n_iters: 2000000
+#     snapshot_freq: 10000
+#     validation_freq: 10000
+    patch_n: 8
+    batch_size: 8
+    n_epochs: 1110
+    n_iters: 2500000
     snapshot_freq: 10000
     validation_freq: 10000
 
 optim:
+#     weight_decay: 0.000
+#     optimizer: "Adam"
+#     lr: 0.00002
+#     beta1: 0.9
+#     amsgrad: False
+#     eps: 0.00000001
     weight_decay: 0.000
     optimizer: "Adam"
     lr: 0.00002
-    beta1: 0.9
     amsgrad: False
     eps: 0.00000001
 
 sampling:
+#     batch_size: 1
     batch_size: 1
+    last_only: True
 
 time_travel:
-    T_sampling: 100
-    travel_length: 1
-    travel_repeat: 1
+    T_sampling: 250
+    travel_length: 20
+    travel_repeat: 3
