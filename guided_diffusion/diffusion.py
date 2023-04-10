@@ -139,13 +139,33 @@ class Diffusion(object):
                              ckpt)
             else:
                 raise ValueError
-            model.load_state_dict(torch.load(ckpt, map_location=self.device),strict = False)
+            
+#             if self.device is None:
+#                 checkpoint= torch.load(ckpt)
+#             else:
+#                 checkpoint= torch.load(ckpt, map_location=self.device)
+            
+#             self.start_epoch = checkpoint['epoch']
+#             self.step = checkpoint['step']
+#             model.load_state_dict(checkpoint['state_dict'])
+#             self.config.optim.optimizer.load_state_dict(checkpoint['optimizer'])
+#             self.configema_helper.load_state_dict(checkpoint['ema_helper'])
+#             if ema:
+#                 self.ema_helper.ema(self.model)
+#             print("load ddm ckpt tgh")
+#             print("=> loaded checkpoint '{}' (epoch {}, step {})".format(ckpt, checkpoint['epoch'], self.step))
+            
+#             model.load_ddm_ckpt(ckpt)
+
+            print("Model's state_dict:")
+            for param_tensor in model.state_dict():
+                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+                
+            model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
             model = torch.nn.DataParallel(model)
             
-#             print("Model's state_dict:")
-#             for param_tensor in model.state_dict():
-#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+            
             
         elif self.config.model.type == 'openai':
             config_dict = vars(self.config.model)
@@ -165,6 +185,10 @@ class Diffusion(object):
                     download(
                         'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt',
                         ckpt)
+                    
+            print("Model's state_dict:")
+            for param_tensor in model.state_dict():
+                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
             model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
@@ -219,7 +243,7 @@ class Diffusion(object):
                     download(
                         'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt',
                         ckpt)
-            model.load_state_dict(torch.load(ckpt, map_location=self.device), strict = False)
+            model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
             model.eval()
             model = torch.nn.DataParallel(model)
@@ -609,15 +633,25 @@ class Diffusion(object):
             from functions.svd_operators import Deblurring
             A_funcs = Deblurring(torch.Tensor([1 / 9] * 9).to(self.device), config.data.channels,
                                  self.config.data.image_size, self.device)
-        elif deg == 'deblur_gauss':
+        elif deg == 'deblur_gauss_old':
             from functions.svd_operators import Deblurring
             sigma = 10
-            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
-            mask = torch.from_numpy(loaded).to(self.device)
-            x = lambda z: z*mask
             pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
             kernel = torch.Tensor([pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2)]).to(self.device)
             A_funcs = Deblurring(kernel / kernel.sum(), config.data.channels, self.config.data.image_size, self.device)
+        elif deg == 'deblur_gauss':
+            from functions.svd_operators import Deblurring
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
+            mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
+            missing_r = torch.nonzero(mask == 0).long().reshape(-1) * 3
+            missing_g = missing_r + 1
+            missing_b = missing_g + 1
+            missing = torch.cat([missing_r, missing_g, missing_b], dim=0)
+            sigma = 10
+            pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
+            kernel = torch.Tensor([pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2)]).to(self.device)
+            print('yeay')
+            A_funcs = Deblurring(kernel / kernel.sum(), config.data.channels, self.config.data.image_size, self.device, missing)
         elif deg == 'deblur_aniso':
             from functions.svd_operators import Deblurring2D
             sigma = 20
