@@ -157,9 +157,9 @@ class Diffusion(object):
             
 #             model.load_ddm_ckpt(ckpt)
 
-            print("Model's state_dict:")
-            for param_tensor in model.state_dict():
-                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+#             print("Model's state_dict:")
+#             for param_tensor in model.state_dict():
+#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
                 
             model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
@@ -186,18 +186,14 @@ class Diffusion(object):
                         'https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt',
                         ckpt)
                     
-            print("Model's state_dict:")
-            for param_tensor in model.state_dict():
-                print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+#             print("Model's state_dict:")
+#             for param_tensor in model.state_dict():
+#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
             model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
             model.eval()
             model = torch.nn.DataParallel(model)
-            
-#             print("Model's state_dict:")
-#             for param_tensor in model.state_dict():
-#                 print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
             if self.config.model.class_cond:
                 ckpt = os.path.join(self.args.exp, 'logs/imagenet/%dx%d_classifier.pt' % (
@@ -640,6 +636,7 @@ class Diffusion(object):
             kernel = torch.Tensor([pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2)]).to(self.device)
             A_funcs = Deblurring(kernel / kernel.sum(), config.data.channels, self.config.data.image_size, self.device)
         elif deg == 'deblur_gauss':
+            print("deblur_gauss")
             from functions.svd_operators import Deblurring
             loaded = np.load("exp/inp_masks_raindrop/mask.npy")
             mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
