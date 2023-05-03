@@ -367,6 +367,50 @@ class Diffusion(object):
             
 #             A = lambda z: A_mask(A_blur(z))
 #             Ap = lambda z: Ap_blur(Ap_mask(z))
+        elif args.deg =='raindrop_mask_du':
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
+            mask = torch.from_numpy(loaded).to(self.device)
+            print("mask",mask.shape )
+            A_mask = lambda z: z*mask
+            Ap_mask = A_mask
+            
+            from functions.svd_operators import Deblurring
+            A_funcs = Deblurring(torch.Tensor([1 / 9] * 9).to(self.device), config.data.channels,
+                                 self.config.data.image_size, self.device)
+            
+            A_blur = lambda z: A_funcs.A(z)
+            Ap_blur = lambda z: A_funcs.A_pinv(z)
+            
+            A = lambda z: A_blur(A_mask(z))
+            Ap = lambda z: Ap_mask(Ap_blur(z))
+#             A = lambda z: A_mask(A_blur(z))
+#             Ap = lambda z: Ap_blur(Ap_mask(z))
+        elif args.deg =='raindrop_mask_da':
+            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
+            mask = torch.from_numpy(loaded).to(self.device)
+            print("mask",mask.shape )
+            A_mask = lambda z: z*mask
+            Ap_mask = A_mask
+            
+            from functions.svd_operators import Deblurring2D
+            sigma = 20
+            pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
+            kernel2 = torch.Tensor([pdf(-4), pdf(-3), pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2), pdf(3), pdf(4)]).to(
+                self.device)
+            sigma = 1
+            pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
+            kernel1 = torch.Tensor([pdf(-4), pdf(-3), pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2), pdf(3), pdf(4)]).to(
+                self.device)
+            A_funcs = Deblurring2D(kernel1 / kernel1.sum(), kernel2 / kernel2.sum(), config.data.channels,
+                                   self.config.data.image_size, self.device)
+            
+            A_blur = lambda z: A_funcs.A(z)
+            Ap_blur = lambda z: A_funcs.A_pinv(z)
+            
+            A = lambda z: A_blur(A_mask(z))
+            Ap = lambda z: Ap_mask(Ap_blur(z))
+#             A = lambda z: A_mask(A_blur(z))
+#             Ap = lambda z: Ap_blur(Ap_mask(z))
         elif args.deg =='sr_averagepooling':
             scale=round(args.deg_scale)
             A = torch.nn.AdaptiveAvgPool2d((256//scale,256//scale))

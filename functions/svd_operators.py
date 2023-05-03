@@ -970,274 +970,274 @@ class SRConv(A_functions):
         temp[:, :reshaped.shape[1]] = reshaped
         return temp
     
-#Deblurring
-class Deblurring_Mask(A_functions):
-    def mat_by_img(self, M, v):
-        return torch.matmul(M, v.reshape(v.shape[0] * self.channels, self.img_dim,
-                        self.img_dim)).reshape(v.shape[0], self.channels, M.shape[0], self.img_dim)
+# #Deblurring
+# class Deblurring_Mask(A_functions):
+#     def mat_by_img(self, M, v):
+#         return torch.matmul(M, v.reshape(v.shape[0] * self.channels, self.img_dim,
+#                         self.img_dim)).reshape(v.shape[0], self.channels, M.shape[0], self.img_dim)
 
-    def img_by_mat(self, v, M):
-        return torch.matmul(v.reshape(v.shape[0] * self.channels, self.img_dim,
-                        self.img_dim), M).reshape(v.shape[0], self.channels, self.img_dim, M.shape[1])
+#     def img_by_mat(self, v, M):
+#         return torch.matmul(v.reshape(v.shape[0] * self.channels, self.img_dim,
+#                         self.img_dim), M).reshape(v.shape[0], self.channels, self.img_dim, M.shape[1])
 
-    def __init__(self, kernel, channels, img_dim, device, missing_indices=None, ZERO = 3e-2):
-        print("init_awal")
-        self.img_dim = img_dim
-        self.channels = channels
-        self.missing_indices = missing_indices
-        self.kept_indices = torch.Tensor([i for i in range(channels * img_dim**2) if i not in missing_indices]).to(device).long()
+#     def __init__(self, kernel, channels, img_dim, device, missing_indices=None, ZERO = 3e-2):
+#         print("init_awal")
+#         self.img_dim = img_dim
+#         self.channels = channels
+#         self.missing_indices = missing_indices
+#         self.kept_indices = torch.Tensor([i for i in range(channels * img_dim**2) if i not in missing_indices]).to(device).long()
 
-        #build 1D conv matrix
-        A_small = torch.zeros(img_dim, img_dim, device=device)
-        for i in range(img_dim):
-            for j in range(i - kernel.shape[0]//2, i + kernel.shape[0]//2):
-                if j < 0 or j >= img_dim: continue
-                A_small[i, j] = kernel[j - i + kernel.shape[0]//2]
-        #get the svd of the 1D conv
-        self.U_small, self.singulars_small, self.V_small = torch.svd(A_small, some=False)
-        #ZERO = 3e-2
-        self.singulars_small_orig = self.singulars_small.clone()
-        self.singulars_small[self.singulars_small < ZERO] = 0
-        #calculate the singular values of the big matrix
-        self._singulars_orig = torch.matmul(self.singulars_small_orig.reshape(img_dim, 1), self.singulars_small_orig.reshape(1, img_dim)).reshape(img_dim**2)
-        self._singulars = torch.matmul(self.singulars_small.reshape(img_dim, 1), self.singulars_small.reshape(1, img_dim)).reshape(img_dim**2)
-        # sort the big matrix singulars and save the permutation
+#         #build 1D conv matrix
+#         A_small = torch.zeros(img_dim, img_dim, device=device)
+#         for i in range(img_dim):
+#             for j in range(i - kernel.shape[0]//2, i + kernel.shape[0]//2):
+#                 if j < 0 or j >= img_dim: continue
+#                 A_small[i, j] = kernel[j - i + kernel.shape[0]//2]
+#         #get the svd of the 1D conv
+#         self.U_small, self.singulars_small, self.V_small = torch.svd(A_small, some=False)
+#         #ZERO = 3e-2
+#         self.singulars_small_orig = self.singulars_small.clone()
+#         self.singulars_small[self.singulars_small < ZERO] = 0
+#         #calculate the singular values of the big matrix
+#         self._singulars_orig = torch.matmul(self.singulars_small_orig.reshape(img_dim, 1), self.singulars_small_orig.reshape(1, img_dim)).reshape(img_dim**2)
+#         self._singulars = torch.matmul(self.singulars_small.reshape(img_dim, 1), self.singulars_small.reshape(1, img_dim)).reshape(img_dim**2)
+#         # sort the big matrix singulars and save the permutation
         
-        self._singulars, self._perm = self._singulars.sort(descending=True)  # , stable=True)
-        self._singulars_orig = self._singulars_orig[self._perm]
-        print("init_akhir")
+#         self._singulars, self._perm = self._singulars.sort(descending=True)  # , stable=True)
+#         self._singulars_orig = self._singulars_orig[self._perm]
+#         print("init_akhir")
 
-    def V(self, vec):
-        print("V_aw")
+#     def V(self, vec):
+#         print("V_aw")
                       
-        #invert the permutation
-        temp = torch.zeros(vec.shape[0], self.img_dim**2, self.channels, device=vec.device)
-        temp[:, self._perm, :] = vec.clone().reshape(vec.shape[0], self.img_dim**2, self.channels)
-        temp = temp.reshape(vec.shape[0], -1)
-        out = torch.zeros_like(temp)
-        out[:, self.kept_indices] = temp[:, :self.kept_indices.shape[0]]
-        out[:, self.missing_indices] = temp[:, self.kept_indices.shape[0]:]
-        out = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
+#         #invert the permutation
+#         temp = torch.zeros(vec.shape[0], self.img_dim**2, self.channels, device=vec.device)
+#         temp[:, self._perm, :] = vec.clone().reshape(vec.shape[0], self.img_dim**2, self.channels)
+#         temp = temp.reshape(vec.shape[0], -1)
+#         out = torch.zeros_like(temp)
+#         out[:, self.kept_indices] = temp[:, :self.kept_indices.shape[0]]
+#         out[:, self.missing_indices] = temp[:, self.kept_indices.shape[0]:]
+#         out = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
+# #         temp = temp.permute(0, 2, 1)
+        
+#         #multiply the image by V from the left and by V^T from the right
+#         out = self.mat_by_img(self.V_small, out)
+#         out = self.img_by_mat(out, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
+#         print("V_ak")
+#         return out
+    
+#     def Vt(self, vec):
+#         print("Vt awal")
+        
+#         #multiply the image by V^T from the left and by V from the right
+#         temp = self.mat_by_img(self.V_small.transpose(0, 1), vec.clone())
+# #         print(temp)
+#         temp = self.img_by_mat(temp, self.V_small).reshape(vec.shape[0], self.channels, -1)
+# #         print(temp)
+        
+#         #permute the entries according to the singular values
+#         temp = temp[:, :, self._perm].permute(0, 2, 1)
+# #         print(temp)
+#         temp = temp.reshape(vec.shape[0], -1)
+        
+#         out = torch.zeros_like(temp)
+#         out[:, :self.kept_indices.shape[0]] = temp[:, self.kept_indices]
+#         out[:, self.kept_indices.shape[0]:] = temp[:, self.missing_indices]
+        
+    
+#         print("Vt akh")
+#         return out 
+
+#     def U(self, vec):
+#         print("U aw")
+#         #invert the permutation
+#         temp = torch.zeros(vec.shape[0], self.img_dim**2, self.channels, device=vec.device)
+#         temp[:, self._perm, :] = vec.clone().reshape(vec.shape[0], self.img_dim**2, self.channels)
 #         temp = temp.permute(0, 2, 1)
         
-        #multiply the image by V from the left and by V^T from the right
-        out = self.mat_by_img(self.V_small, out)
-        out = self.img_by_mat(out, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
-        print("V_ak")
-        return out
+#          # apply the mask to the temp tensor
+# #         temp = temp[:, :, self.kept_indices]
+
+#         #multiply the image by U from the left and by U^T from the right
+#         out = self.mat_by_img(self.U_small, temp)
+#         out = self.img_by_mat(out, self.U_small.transpose(0, 1)).reshape(vec.shape[0], -1)
+#         print("U akh")
+#         return out
+
+#     def Ut(self, vec):
+#         print("Ut aw")
+#         #multiply the image by U^T from the left and by U from the right
+#         temp = self.mat_by_img(self.U_small.transpose(0, 1), vec.clone())
+#         temp = self.img_by_mat(temp, self.U_small).reshape(vec.shape[0], self.channels, -1)
+        
+#          # apply the mask to the temp tensor
+# #         temp = temp[:, self._perm[self.kept_indices], :]
+
+#         #permute the entries according to the singular values
+#         temp = temp[:, :, self._perm].permute(0, 2, 1)
+#         print("Ut ak")
+#         return temp.reshape(vec.shape[0], -1)
+
+#     def singulars(self):
+#         print("singulars exec")
+#         return self._singulars.repeat(1, 3).reshape(-1)
+
+#     def add_zeros(self, vec):
+#         print("add_zeros exec")
+#         return vec.clone().reshape(vec.shape[0], -1)
     
-    def Vt(self, vec):
-        print("Vt awal")
+#     def A_pinv(self, vec):
+#         print("A_pinv awal")
+#         temp = self.Ut(vec)
+#         singulars = self._singulars.repeat(1, 3).reshape(-1)
         
-        #multiply the image by V^T from the left and by V from the right
-        temp = self.mat_by_img(self.V_small.transpose(0, 1), vec.clone())
-#         print(temp)
-        temp = self.img_by_mat(temp, self.V_small).reshape(vec.shape[0], self.channels, -1)
-#         print(temp)
+#         factors = 1. / singulars
+#         factors[singulars == 0] = 0.
         
-        #permute the entries according to the singular values
-        temp = temp[:, :, self._perm].permute(0, 2, 1)
-#         print(temp)
-        temp = temp.reshape(vec.shape[0], -1)
-        
-        out = torch.zeros_like(temp)
-        out[:, :self.kept_indices.shape[0]] = temp[:, self.kept_indices]
-        out[:, self.kept_indices.shape[0]:] = temp[:, self.missing_indices]
-        
+#         temp[:, :singulars.shape[0]] = temp[:, :singulars.shape[0]] * factors
+#         print("A_pinv akhir")
+#         return self.V(self.add_zeros(temp))
     
-        print("Vt akh")
-        return out 
-
-    def U(self, vec):
-        print("U aw")
-        #invert the permutation
-        temp = torch.zeros(vec.shape[0], self.img_dim**2, self.channels, device=vec.device)
-        temp[:, self._perm, :] = vec.clone().reshape(vec.shape[0], self.img_dim**2, self.channels)
-        temp = temp.permute(0, 2, 1)
-        
-         # apply the mask to the temp tensor
-#         temp = temp[:, :, self.kept_indices]
-
-        #multiply the image by U from the left and by U^T from the right
-        out = self.mat_by_img(self.U_small, temp)
-        out = self.img_by_mat(out, self.U_small.transpose(0, 1)).reshape(vec.shape[0], -1)
-        print("U akh")
-        return out
-
-    def Ut(self, vec):
-        print("Ut aw")
-        #multiply the image by U^T from the left and by U from the right
-        temp = self.mat_by_img(self.U_small.transpose(0, 1), vec.clone())
-        temp = self.img_by_mat(temp, self.U_small).reshape(vec.shape[0], self.channels, -1)
-        
-         # apply the mask to the temp tensor
-#         temp = temp[:, self._perm[self.kept_indices], :]
-
-        #permute the entries according to the singular values
-        temp = temp[:, :, self._perm].permute(0, 2, 1)
-        print("Ut ak")
-        return temp.reshape(vec.shape[0], -1)
-
-    def singulars(self):
-        print("singulars exec")
-        return self._singulars.repeat(1, 3).reshape(-1)
-
-    def add_zeros(self, vec):
-        print("add_zeros exec")
-        return vec.clone().reshape(vec.shape[0], -1)
-    
-    def A_pinv(self, vec):
-        print("A_pinv awal")
-        temp = self.Ut(vec)
-        singulars = self._singulars.repeat(1, 3).reshape(-1)
-        
-        factors = 1. / singulars
-        factors[singulars == 0] = 0.
-        
-        temp[:, :singulars.shape[0]] = temp[:, :singulars.shape[0]] * factors
-        print("A_pinv akhir")
-        return self.V(self.add_zeros(temp))
-    
-    def Lambda(self, vec, a, sigma_y, sigma_t, eta):
-        print("L aw")
-        temp_vec = self.mat_by_img(self.V_small.transpose(0, 1), vec.clone())
-        temp_vec = self.img_by_mat(temp_vec, self.V_small).reshape(vec.shape[0], self.channels, -1)
-        temp_vec = temp_vec[:, :, self._perm].permute(0, 2, 1)
+#     def Lambda(self, vec, a, sigma_y, sigma_t, eta):
+#         print("L aw")
+#         temp_vec = self.mat_by_img(self.V_small.transpose(0, 1), vec.clone())
+#         temp_vec = self.img_by_mat(temp_vec, self.V_small).reshape(vec.shape[0], self.channels, -1)
+#         temp_vec = temp_vec[:, :, self._perm].permute(0, 2, 1)
       
-        singulars = self._singulars_orig
-        lambda_t = torch.ones(self.img_dim ** 2, device=vec.device)
-        temp_singulars = torch.zeros(self.img_dim ** 2, device=vec.device)
-        temp_singulars[:singulars.size(0)] = singulars
-        singulars = temp_singulars
-        inverse_singulars = 1. / singulars
-        inverse_singulars[singulars == 0] = 0.
+#         singulars = self._singulars_orig
+#         lambda_t = torch.ones(self.img_dim ** 2, device=vec.device)
+#         temp_singulars = torch.zeros(self.img_dim ** 2, device=vec.device)
+#         temp_singulars[:singulars.size(0)] = singulars
+#         singulars = temp_singulars
+#         inverse_singulars = 1. / singulars
+#         inverse_singulars[singulars == 0] = 0.
 
-        if a != 0 and sigma_y != 0:
-            change_index = (sigma_t < a * sigma_y * inverse_singulars) * 1.0
-            lambda_t = lambda_t * (-change_index + 1.0) + change_index * (
-                    singulars * sigma_t * (1 - eta ** 2) ** 0.5 / a / sigma_y)
+#         if a != 0 and sigma_y != 0:
+#             change_index = (sigma_t < a * sigma_y * inverse_singulars) * 1.0
+#             lambda_t = lambda_t * (-change_index + 1.0) + change_index * (
+#                     singulars * sigma_t * (1 - eta ** 2) ** 0.5 / a / sigma_y)
 
-        lambda_t = lambda_t.reshape(1, -1, 1)
-        temp_vec = temp_vec * lambda_t
+#         lambda_t = lambda_t.reshape(1, -1, 1)
+#         temp_vec = temp_vec * lambda_t
 
-        temp = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-        temp[:, self._perm, :] = temp_vec.clone().reshape(vec.shape[0], self.img_dim ** 2, self.channels)
-        temp = temp.reshape(vec.shape[0], -1)
+#         temp = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+#         temp[:, self._perm, :] = temp_vec.clone().reshape(vec.shape[0], self.img_dim ** 2, self.channels)
+#         temp = temp.reshape(vec.shape[0], -1)
         
-        out = torch.zeros_like(temp)
-        out[:, self.kept_indices] = temp[:, :self.kept_indices.shape[0]]
-        out[:, self.missing_indices] = temp[:, self.kept_indices.shape[0]:]
-        out = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
+#         out = torch.zeros_like(temp)
+#         out[:, self.kept_indices] = temp[:, :self.kept_indices.shape[0]]
+#         out[:, self.missing_indices] = temp[:, self.kept_indices.shape[0]:]
+#         out = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
         
-        out = self.mat_by_img(self.V_small, out)
-        out = self.img_by_mat(out, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
-        print("Lam ak")
-        return out
+#         out = self.mat_by_img(self.V_small, out)
+#         out = self.img_by_mat(out, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
+#         print("Lam ak")
+#         return out
 
-    def Lambda_noise(self, vec, a, sigma_y, sigma_t, eta, epsilon):
-        print("LN aw")
-        temp_vec = vec.clone().reshape(vec.shape[0], self.channels, -1)
-        temp_vec = temp_vec[:, :, self._perm].permute(0, 2, 1)
-#         temp_vec = temp_vec.reshape(vec.shape[0], -1)
-#         out = torch.zeros_like(temp_vec)
-#         out[:, self.kept_indices] = temp_vec[:, :self.kept_indices.shape[0]]
-#         out[:, self.missing_indices] = temp_vec[:, self.kept_indices.shape[0]:]
-#         temp_vec = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
-#         temp_vec = torch.zeros_like(temp_vec)
-#         temp_vec[:, self.kept_indices] = temp_vec[:, :self.kept_indices.shape[0]]
-#         temp_vec[:, self.missing_indices] = temp_vec[:, self.kept_indices.shape[0]:]
-#         out_vec = torch.zeros_like(temp_vec)
-#         out_vec[:, :self.kept_indices.shape[0]] = temp_vec[:, self.kept_indices]
-#         out_vec[:, self.kept_indices.shape[0]:] = temp_vec[:, self.missing_indices]
+#     def Lambda_noise(self, vec, a, sigma_y, sigma_t, eta, epsilon):
+#         print("LN aw")
+#         temp_vec = vec.clone().reshape(vec.shape[0], self.channels, -1)
+#         temp_vec = temp_vec[:, :, self._perm].permute(0, 2, 1)
+# #         temp_vec = temp_vec.reshape(vec.shape[0], -1)
+# #         out = torch.zeros_like(temp_vec)
+# #         out[:, self.kept_indices] = temp_vec[:, :self.kept_indices.shape[0]]
+# #         out[:, self.missing_indices] = temp_vec[:, self.kept_indices.shape[0]:]
+# #         temp_vec = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
+# #         temp_vec = torch.zeros_like(temp_vec)
+# #         temp_vec[:, self.kept_indices] = temp_vec[:, :self.kept_indices.shape[0]]
+# #         temp_vec[:, self.missing_indices] = temp_vec[:, self.kept_indices.shape[0]:]
+# #         out_vec = torch.zeros_like(temp_vec)
+# #         out_vec[:, :self.kept_indices.shape[0]] = temp_vec[:, self.kept_indices]
+# #         out_vec[:, self.kept_indices.shape[0]:] = temp_vec[:, self.missing_indices]
 
 
-        temp_eps = epsilon.clone().reshape(vec.shape[0], self.channels, -1)
-        temp_eps = temp_eps[:, :, self._perm].permute(0, 2, 1)
-#         temp_eps = temp_eps.reshape(vec.shape[0], -1)
-#         out = torch.zeros_like(temp_eps)
-#         out[:, self.kept_indices] = temp_eps[:, :self.kept_indices.shape[0]]
-#         out[:, self.missing_indices] = temp_eps[:, self.kept_indices.shape[0]:]
-#         temp_eps = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
-#         out_eps = torch.zeros_like(temp_eps)
-#         out_eps[:, :self.kept_indices.shape[0]] = temp_eps[:, self.kept_indices]
-#         out_eps[:, self.kept_indices.shape[0]:] = temp_eps[:, self.missing_indices]
+#         temp_eps = epsilon.clone().reshape(vec.shape[0], self.channels, -1)
+#         temp_eps = temp_eps[:, :, self._perm].permute(0, 2, 1)
+# #         temp_eps = temp_eps.reshape(vec.shape[0], -1)
+# #         out = torch.zeros_like(temp_eps)
+# #         out[:, self.kept_indices] = temp_eps[:, :self.kept_indices.shape[0]]
+# #         out[:, self.missing_indices] = temp_eps[:, self.kept_indices.shape[0]:]
+# #         temp_eps = out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
+# #         out_eps = torch.zeros_like(temp_eps)
+# #         out_eps[:, :self.kept_indices.shape[0]] = temp_eps[:, self.kept_indices]
+# #         out_eps[:, self.kept_indices.shape[0]:] = temp_eps[:, self.missing_indices]
 
-        singulars = self._singulars_orig
-        d1_t = torch.ones(self.img_dim ** 2, device=vec.device) * sigma_t * eta
-        d2_t = torch.ones(self.img_dim ** 2, device=vec.device) * sigma_t * (1 - eta ** 2) ** 0.5
+#         singulars = self._singulars_orig
+#         d1_t = torch.ones(self.img_dim ** 2, device=vec.device) * sigma_t * eta
+#         d2_t = torch.ones(self.img_dim ** 2, device=vec.device) * sigma_t * (1 - eta ** 2) ** 0.5
 
-        temp_singulars = torch.zeros(self.img_dim ** 2, device=vec.device)
-        temp_singulars[:singulars.size(0)] = singulars
-        singulars = temp_singulars
-        inverse_singulars = 1. / singulars
-        inverse_singulars[singulars == 0] = 0.
+#         temp_singulars = torch.zeros(self.img_dim ** 2, device=vec.device)
+#         temp_singulars[:singulars.size(0)] = singulars
+#         singulars = temp_singulars
+#         inverse_singulars = 1. / singulars
+#         inverse_singulars[singulars == 0] = 0.
 
-        if a != 0 and sigma_y != 0:
-            change_index = (sigma_t < a * sigma_y * inverse_singulars) * 1.0
-            d1_t = d1_t * (-change_index + 1.0) + change_index * sigma_t * eta
-            d2_t = d2_t * (-change_index + 1.0)
+#         if a != 0 and sigma_y != 0:
+#             change_index = (sigma_t < a * sigma_y * inverse_singulars) * 1.0
+#             d1_t = d1_t * (-change_index + 1.0) + change_index * sigma_t * eta
+#             d2_t = d2_t * (-change_index + 1.0)
 
-            change_index = (sigma_t > a * sigma_y * inverse_singulars) * 1.0
-            d1_t = d1_t * (-change_index + 1.0) + torch.sqrt(
-                change_index * (sigma_t ** 2 - a ** 2 * sigma_y ** 2 * inverse_singulars ** 2))
-            d2_t = d2_t * (-change_index + 1.0)
+#             change_index = (sigma_t > a * sigma_y * inverse_singulars) * 1.0
+#             d1_t = d1_t * (-change_index + 1.0) + torch.sqrt(
+#                 change_index * (sigma_t ** 2 - a ** 2 * sigma_y ** 2 * inverse_singulars ** 2))
+#             d2_t = d2_t * (-change_index + 1.0)
 
-            change_index = (singulars == 0) * 1.0
-            d1_t = d1_t * (-change_index + 1.0) + change_index * sigma_t * eta
-            d2_t = d2_t * (-change_index + 1.0) + change_index * sigma_t * (1 - eta ** 2) ** 0.5
+#             change_index = (singulars == 0) * 1.0
+#             d1_t = d1_t * (-change_index + 1.0) + change_index * sigma_t * eta
+#             d2_t = d2_t * (-change_index + 1.0) + change_index * sigma_t * (1 - eta ** 2) ** 0.5
 
-        d1_t = d1_t.reshape(1, -1, 1)
-        d2_t = d2_t.reshape(1, -1, 1)
+#         d1_t = d1_t.reshape(1, -1, 1)
+#         d2_t = d2_t.reshape(1, -1, 1)
 
-#         temp_vec = out_vec * d1_t
-#         temp_eps = out_eps * d2_t
+# #         temp_vec = out_vec * d1_t
+# #         temp_eps = out_eps * d2_t
 
-        temp_vec = temp_vec * d1_t
-        temp_eps = temp_eps * d2_t
+#         temp_vec = temp_vec * d1_t
+#         temp_eps = temp_eps * d2_t
 
-#         if self.missing_indices is not None:
-#             temp_vec_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-#             temp_vec_new[:, self.missing_indices, :] = temp_vec.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)
-#             temp_vec_new[:, self.kept_indices, :] = vec.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)[:, self.kept_indices, :]
-#         else:
-#             temp_vec_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-#             temp_vec_new[:, self._perm, :] = temp_vec
-
-        
-        temp_vec_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-        temp_vec_new[:, self._perm, :] = temp_vec
-        temp_vec_new = temp_vec_new.reshape(vec.shape[0], -1)
-        
-        out = torch.zeros_like(temp_vec_new)
-        out[:, self.kept_indices] = temp_vec_new[:, :self.kept_indices.shape[0]]
-        out[:, self.missing_indices] = temp_vec_new[:, self.kept_indices.shape[0]:]
-        temp_vec_new = out.reshape(vec.shape[0], -1, self.channels)
-        
-        out_vec = self.mat_by_img(self.V_small, temp_vec_new.permute(0, 2, 1))
-        out_vec = self.img_by_mat(out_vec, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
-
-#         if self.missing_indices is not None:
-#             temp_eps_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-#             temp_eps_new[:, self.missing_indices, :] = temp_eps.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)
-#             temp_eps_new[:, self.kept_indices, :] = vec.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)[:, self.kept_indices, :]
-#         else:
-#             temp_eps_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-#             temp_eps_new[:, self._perm, :] = temp_eps
+# #         if self.missing_indices is not None:
+# #             temp_vec_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+# #             temp_vec_new[:, self.missing_indices, :] = temp_vec.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)
+# #             temp_vec_new[:, self.kept_indices, :] = vec.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)[:, self.kept_indices, :]
+# #         else:
+# #             temp_vec_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+# #             temp_vec_new[:, self._perm, :] = temp_vec
 
         
-        temp_eps_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
-        temp_eps_new[:, self._perm, :] = temp_eps
-        temp_eps_new = temp_eps_new.reshape(vec.shape[0], -1)
+#         temp_vec_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+#         temp_vec_new[:, self._perm, :] = temp_vec
+#         temp_vec_new = temp_vec_new.reshape(vec.shape[0], -1)
         
-        out = torch.zeros_like(temp_eps_new)
-        out[:, self.kept_indices] = temp_eps_new[:, :self.kept_indices.shape[0]]
-        out[:, self.missing_indices] = temp_eps_new[:, self.kept_indices.shape[0]:]
-        temp_eps_new = out.reshape(vec.shape[0], -1, self.channels)
+#         out = torch.zeros_like(temp_vec_new)
+#         out[:, self.kept_indices] = temp_vec_new[:, :self.kept_indices.shape[0]]
+#         out[:, self.missing_indices] = temp_vec_new[:, self.kept_indices.shape[0]:]
+#         temp_vec_new = out.reshape(vec.shape[0], -1, self.channels)
         
-        out_eps = self.mat_by_img(self.V_small, temp_eps_new.permute(0, 2, 1))
-        out_eps = self.img_by_mat(out_eps, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
-        print("Ln ak")
-        return out_vec + out_eps
+#         out_vec = self.mat_by_img(self.V_small, temp_vec_new.permute(0, 2, 1))
+#         out_vec = self.img_by_mat(out_vec, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
+
+# #         if self.missing_indices is not None:
+# #             temp_eps_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+# #             temp_eps_new[:, self.missing_indices, :] = temp_eps.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)
+# #             temp_eps_new[:, self.kept_indices, :] = vec.clone().reshape(vec.shape[0], self.img_dim ** 2 - len(self.missing_indices), self.channels)[:, self.kept_indices, :]
+# #         else:
+# #             temp_eps_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+# #             temp_eps_new[:, self._perm, :] = temp_eps
+
+        
+#         temp_eps_new = torch.zeros(vec.shape[0], self.img_dim ** 2, self.channels, device=vec.device)
+#         temp_eps_new[:, self._perm, :] = temp_eps
+#         temp_eps_new = temp_eps_new.reshape(vec.shape[0], -1)
+        
+#         out = torch.zeros_like(temp_eps_new)
+#         out[:, self.kept_indices] = temp_eps_new[:, :self.kept_indices.shape[0]]
+#         out[:, self.missing_indices] = temp_eps_new[:, self.kept_indices.shape[0]:]
+#         temp_eps_new = out.reshape(vec.shape[0], -1, self.channels)
+        
+#         out_eps = self.mat_by_img(self.V_small, temp_eps_new.permute(0, 2, 1))
+#         out_eps = self.img_by_mat(out_eps, self.V_small.transpose(0, 1)).reshape(vec.shape[0], -1)
+#         print("Ln ak")
+#         return out_vec + out_eps
 
 #Deblurring
 class Deblurring(A_functions):
@@ -1321,6 +1321,7 @@ class Deblurring(A_functions):
         
         temp[:, :singulars.shape[0]] = temp[:, :singulars.shape[0]] * factors
         return self.V(self.add_zeros(temp)).reshape((1,3,256,256))
+#         return self.V(self.add_zeros(temp))
     
     def Lambda(self, vec, a, sigma_y, sigma_t, eta):
         temp_vec = self.mat_by_img(self.V_small.transpose(0, 1), vec.clone())
@@ -1633,3 +1634,17 @@ class Deblurring2D(A_functions):
 
     def add_zeros(self, vec):
         return vec.clone().reshape(vec.shape[0], -1)
+    
+    def A_pinv(self, vec):
+        """
+        Multiplies the input vector by the pseudo inverse of A
+        """
+        temp = self.Ut(vec)
+        singulars = self.singulars()
+        
+        factors = 1. / singulars
+        factors[singulars == 0] = 0.
+        
+#         temp[:, :singulars.shape[0]] = temp[:, :singulars.shape[0]] / singulars
+        temp[:, :singulars.shape[0]] = temp[:, :singulars.shape[0]] * factors
+        return self.V(self.add_zeros(temp)).reshape((1,3,256,256))
