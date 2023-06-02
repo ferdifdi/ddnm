@@ -694,26 +694,12 @@ class Diffusion(object):
             from functions.svd_operators import Deblurring
             A_funcs = Deblurring(torch.Tensor([1 / 9] * 9).to(self.device), config.data.channels,
                                  self.config.data.image_size, self.device)
-        elif deg == 'deblur_gauss_old':
+        elif deg == 'deblur_gauss':
             from functions.svd_operators import Deblurring
             sigma = 10
             pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
             kernel = torch.Tensor([pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2)]).to(self.device)
             A_funcs = Deblurring(kernel / kernel.sum(), config.data.channels, self.config.data.image_size, self.device)
-        elif deg == 'deblur_gauss':
-            print("deblur_gauss")
-            from functions.svd_operators import Deblurring_Mask
-            loaded = np.load("exp/inp_masks_raindrop/mask.npy")
-            mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
-            missing_r = torch.nonzero(mask == 0).long().reshape(-1) * 3
-            missing_g = missing_r + 1
-            missing_b = missing_g + 1
-            missing = torch.cat([missing_r, missing_g, missing_b], dim=0)
-            sigma = 10
-            pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
-            kernel = torch.Tensor([pdf(-2), pdf(-1), pdf(0), pdf(1), pdf(2)]).to(self.device)
-            print('yeay')
-            A_funcs = Deblurring_Mask(kernel / kernel.sum(), config.data.channels, self.config.data.image_size, self.device, missing)
         elif deg == 'deblur_aniso':
             from functions.svd_operators import Deblurring2D
             sigma = 20
